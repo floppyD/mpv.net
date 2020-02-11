@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Collections.Generic;
@@ -50,23 +51,23 @@ public class Msg
                 td.Show();
             }
         }
-        catch (Exception ex)
+        catch (Exception e)
         {
-            MessageBox.Show(ex.GetType().Name + "\n\n" + ex.Message + "\n\n" + ex.ToString(),
+            MessageBox.Show(e.GetType().Name + "\n\n" + e.Message + "\n\n" + e,
                 Application.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
-    public static void ShowException(Exception e)
+    public static void ShowException(Exception exception)
     {
         try
         {
             using (TaskDialog<string> td = new TaskDialog<string>())
             {
-                td.MainInstruction = e.GetType().Name;
-                td.Content = e.Message;
+                td.MainInstruction = exception.GetType().Name;
+                td.Content = exception.Message;
                 td.MainIcon = MsgIcon.Error;
-                td.ExpandedInformation = e.ToString();
+                td.ExpandedInformation = exception.ToString();
                 td.Footer = "[Copy Message](copymsg)";
 
                 if (!string.IsNullOrEmpty(Msg.SupportURL))
@@ -75,9 +76,9 @@ public class Msg
                 td.Show();
             }
         }
-        catch (Exception ex)
+        catch (Exception e)
         {
-            MessageBox.Show(ex.GetType().Name + "\n\n" + ex.Message + "\n\n" + ex.ToString(),
+            MessageBox.Show(e.GetType().Name + "\n\n" + e.Message + "\n\n" + e,
                 Application.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -144,9 +145,9 @@ public class Msg
                 return td.Show();
             }
         }
-        catch (Exception ex)
+        catch (Exception e)
         {
-            return (MsgResult)MessageBox.Show(ex.GetType().Name + "\n\n" + ex.Message + "\n\n" + ex.ToString(),
+            return (MsgResult)MessageBox.Show(e.GetType().Name + "\n\n" + e.Message + "\n\n" + e,
                 Application.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -235,6 +236,7 @@ public class TaskDialog<T> : TaskDialogNative, IDisposable
 
         if (Path.GetFileName(lpszFileName.ToString().Replace(".vshost", "")) ==
             Path.GetFileName(Assembly.GetEntryAssembly().Location))
+
             return foregroundWindow;
 
         return IntPtr.Zero;
@@ -359,7 +361,7 @@ public class TaskDialog<T> : TaskDialogNative, IDisposable
     public void AddCommandLink(string text, T value)
     {
         int n = 1000 + IdValueDic.Count + 1;
-        IdValueDic[n] = value == null ? (T)(object)text : value;
+        IdValueDic[n] = value;
         IdTextDic[n] = text;
         Buttons.Add(new TaskDialogNative.TASKDIALOG_BUTTON(n, text));
         Config.dwFlags |= TaskDialogNative.TASKDIALOG_FLAGS.TDF_USE_COMMAND_LINKS;

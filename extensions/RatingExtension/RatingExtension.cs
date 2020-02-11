@@ -1,4 +1,8 @@
-﻿using System;
+// This extension writes a rating to the filename of rated videos when mpv.net shuts down.
+
+// The input.conf defaults contain key bindings for this extension to set ratings.
+
+using System;
 using System.ComponentModel.Composition;
 using System.Collections.Generic;
 using System.IO;
@@ -26,13 +30,13 @@ namespace RatingExtension // the assembly name must end with 'Extension'
             {
                 string filepath = i.Key;
                 int rating = i.Value;
-                if (String.IsNullOrEmpty(filepath) || ! File.Exists(filepath))
+                if (String.IsNullOrEmpty(filepath) || !File.Exists(filepath))
                     return;
                 string basename = Path.GetFileNameWithoutExtension(filepath);
 
                 for (int x = 0; x < 6; x++)
-                    if (basename.Contains(" (" + x.ToString() + "stars)"))
-                        basename = basename.Replace(" (" + x.ToString() + "stars)", "");
+                    if (basename.Contains(" (" + x + "stars)"))
+                        basename = basename.Replace(" (" + x + "stars)", "");
 
                 basename += $" ({rating}stars)";
                 string newPath = Path.Combine(Path.GetDirectoryName(filepath), basename + Path.GetExtension(filepath));

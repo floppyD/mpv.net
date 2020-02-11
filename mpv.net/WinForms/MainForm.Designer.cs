@@ -30,14 +30,19 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            this.Timer = new System.Windows.Forms.Timer(this.components);
+            this.CursorTimer = new System.Windows.Forms.Timer(this.components);
+            this.ProgressTimer = new System.Windows.Forms.Timer(this.components);
             this.SuspendLayout();
             // 
-            // Timer
+            // CursorTimer
             // 
-            this.Timer.Enabled = true;
-            this.Timer.Interval = 1000;
-            this.Timer.Tick += new System.EventHandler(this.Timer_Tick);
+            this.CursorTimer.Enabled = true;
+            this.CursorTimer.Interval = 1000;
+            this.CursorTimer.Tick += new System.EventHandler(this.CursorTimer_Tick);
+            // 
+            // ProgressTimer
+            // 
+            this.ProgressTimer.Tick += new System.EventHandler(this.ProgressTimer_Tick);
             // 
             // MainForm
             // 
@@ -45,7 +50,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(288F, 288F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.BackColor = System.Drawing.Color.Black;
-            this.ClientSize = new System.Drawing.Size(542, 0);
+            this.ClientSize = new System.Drawing.Size(348, 0);
             this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
@@ -57,6 +62,7 @@
 
         #endregion
 
-        private System.Windows.Forms.Timer Timer;
+        private System.Windows.Forms.Timer CursorTimer;
+        private System.Windows.Forms.Timer ProgressTimer;
     }
 }

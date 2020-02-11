@@ -1,8 +1,8 @@
-﻿using System;
+﻿
+using System;
 using System.Windows.Forms;
 using System.Linq;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Diagnostics;
 
@@ -17,6 +17,12 @@ namespace mpvnet
             {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
+
+                if (App.IsStartedFromTerminal)
+                    Native.AttachConsole(-1 /*ATTACH_PARENT_PROCESS*/);
+
+                if (mp.ConfigFolder == "")
+                    return;
 
                 string[] args = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
@@ -38,8 +44,14 @@ namespace mpvnet
                     files.Add(App.ProcessInstance);
 
                     foreach (string arg in args)
-                        if (!arg.StartsWith("--") && (arg == "-" || arg.Contains("://") || File.Exists(arg)))
+                    {
+                        if (!arg.StartsWith("--") && (arg == "-" || arg.Contains("://") ||
+                            arg.Contains(":\\") || arg.StartsWith("\\\\")))
+
                             files.Add(arg);
+                        else if (arg == "--queue")
+                            files[0] = "queue";
+                    }
 
                     Process[] procs = Process.GetProcessesByName("mpvnet");
 
@@ -55,16 +67,26 @@ namespace mpvnet
                                 data.cbData = data.lpData.Length * 2 + 1;
                                 Native.SendMessage(proc.MainWindowHandle, 0x004A /*WM_COPYDATA*/, IntPtr.Zero, ref data);
                                 mutex.Dispose();
+
+                                if (App.IsStartedFromTerminal)
+                                    Native.FreeConsole();
+
                                 return;
                             }
                         }
+
                         Thread.Sleep(50);
                     }
+
                     mutex.Dispose();
                     return;
                 }
 
                 Application.Run(new MainForm());
+
+                if (App.IsStartedFromTerminal)
+                    Native.FreeConsole();
+
                 mutex.Dispose();
             }
             catch (Exception ex)

@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("mpv.net")]
-[assembly: AssemblyDescription("media player")]
+[assembly: AssemblyDescription("mpv based media player")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Frank Skare (stax76)")]
 [assembly: AssemblyProduct("mpv.net")]
-[assembly: AssemblyCopyright("Copyright © 2017-2019 Frank Skare (stax76)")]
+[assembly: AssemblyCopyright("Copyright (c) 2017-2019 Frank Skare (stax76)")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("4.7.7.0")]
-[assembly: AssemblyFileVersion("4.7.7.0")]
+[assembly: AssemblyVersion("5.4.4.0")]
+[assembly: AssemblyFileVersion("5.4.4.0")]

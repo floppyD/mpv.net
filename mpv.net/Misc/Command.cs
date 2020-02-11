@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -16,11 +17,15 @@ namespace mpvnet
         {
             switch (id)
             {
-                case "manage-file-associations": ManageFileAssociations(); break;
+                case "open-files": OpenFiles(args); break;
+                case "update-check": UpdateCheck.CheckOnline(true); break;
+                case "open-url": OpenURL(); break;
+                case "open-optical-media": Open_DVD_Or_BD_Folder(); break;
+                case "manage-file-associations": // deprecated 2019
+                case "show-setup-dialog": ShowDialog(typeof(SetupWindow)); break;
                 case "cycle-audio": CycleAudio(); break;
                 case "load-audio": LoadAudio(); break;
                 case "load-sub": LoadSubtitle(); break;
-                case "open-url": OpenURL(); break;
                 case "execute-mpv-command": ExecuteMpvCommand(); break;
                 case "show-history": ShowHistory(); break;
                 case "show-media-search": ShowDialog(typeof(EverythingWindow)); break;
@@ -29,12 +34,17 @@ namespace mpvnet
                 case "show-conf-editor": ShowDialog(typeof(ConfWindow)); break;
                 case "show-input-editor": ShowDialog(typeof(InputWindow)); break;
                 case "open-conf-folder": Process.Start(mp.ConfigFolder); break;
-                case "open-files": OpenFiles(args); break;
                 case "shell-execute": Process.Start(args[0]); break;
                 case "show-info": ShowInfo(); break;
+                case "playlist-last": PlaylistLast(); break;
                 case "add-files-to-playlist": OpenFiles("append"); break; // deprecated 2019
                 default: Msg.ShowError($"No command '{id}' found."); break;
             }
+
+            MainForm.Instance.BeginInvoke(new Action(() => {
+                Message m = new Message() { Msg = 0x0202 }; // WM_LBUTTONUP
+                Native.SendMessage(MainForm.Instance.Handle, m.Msg, m.WParam, m.LParam);           
+            }));
         }
 
         public static void InvokeOnMainThread(Action action) => MainForm.Instance.Invoke(action);
@@ -66,16 +76,44 @@ namespace mpvnet
             }));
         }
 
+        public static void Open_DVD_Or_BD_Folder()
+        {
+            InvokeOnMainThread(new Action(() => {
+                using (var d = new FolderBrowserDialog())
+                {
+                    d.Description = "Select a DVD or Blu-ray folder.";
+                    d.ShowNewFolderButton = false;
+
+                    if (d.ShowDialog() == DialogResult.OK)
+                    {
+                        if (Directory.Exists(d.SelectedPath + "\\BDMV"))
+                        {
+                            mp.set_property_string("bluray-device", d.SelectedPath);
+                            mp.Load(new[] { @"bd://" }, false, false);
+                        }
+                        else
+                        {
+                            mp.set_property_string("dvd-device", d.SelectedPath);
+                            mp.Load(new[] { @"dvd://" }, false, false);
+                        }
+                    }
+                }
+            }));
+        }
+
+        public static void PlaylistLast() => mp.set_property_int("playlist-pos", mp.get_property_int("playlist-count") - 1);
+
         public static void ShowHistory()
         {
-            var fp = mp.ConfigFolder + "history.txt";
-
-            if (File.Exists(fp))
-                Process.Start(fp);
+            if (File.Exists(mp.ConfigFolder + "history.txt"))
+                Process.Start(mp.ConfigFolder + "history.txt");
             else
+            {
                 if (Msg.ShowQuestion("Create history.txt file in config folder?",
                     "mpv.net will write the date, time and filename of opened files to it.") == MsgResult.OK)
-                    File.WriteAllText(fp, "");
+
+                    File.WriteAllText(mp.ConfigFolder + "history.txt", "");
+            }
         }
 
         public static void ShowInfo()
@@ -85,6 +123,10 @@ namespace mpvnet
                 string performer, title, album, genre, date, duration, text = "";
                 long fileSize = 0;
                 string path = mp.get_property_string("path");
+
+                if (path.Contains("://"))
+                    path = mp.get_property_string("media-title");
+
                 int width = mp.get_property_int("video-params/w");
                 int height = mp.get_property_int("video-params/h");
 
@@ -92,7 +134,7 @@ namespace mpvnet
                 {
                     fileSize = new FileInfo(path).Length;
 
-                    if (App.AudioTypes.Contains(Path.GetExtension(path).ToLower().TrimStart('.')))
+                    if (App.AudioTypes.Contains(path.ShortExt()))
                     {
                         using (MediaInfo mediaInfo = new MediaInfo(path))
                         {
@@ -110,13 +152,13 @@ namespace mpvnet
                             if (date != "") text += "Year: " + date + "\n";
                             if (duration != "") text += "Length: " + duration + "\n";
                             text += "Size: " + mediaInfo.GetInfo(MediaInfoStreamKind.General, "FileSize/String") + "\n";
-                            text += "Type: " + Path.GetExtension(path).ToUpper().TrimStart('.');
+                            text += "Type: " + path.ShortExt().ToUpper();
 
                             mp.commandv("show-text", text, "5000");
                             return;
                         }
                     }
-                    else if (App.ImageTypes.Contains(Path.GetExtension(path).ToLower().TrimStart('.')))
+                    else if (App.ImageTypes.Contains(path.ShortExt()))
                     {
                         using (MediaInfo mediaInfo = new MediaInfo(path))
                         {
@@ -124,7 +166,7 @@ namespace mpvnet
                                 "Width: " + mediaInfo.GetInfo(MediaInfoStreamKind.Image, "Width") + "\n" +
                                 "Height: " + mediaInfo.GetInfo(MediaInfoStreamKind.Image, "Height") + "\n" +
                                 "Size: " + mediaInfo.GetInfo(MediaInfoStreamKind.General, "FileSize/String") + "\n" +
-                                "Type: " + Path.GetExtension(path).ToUpper().TrimStart('.');
+                                "Type: " + path.ShortExt().ToUpper();
 
                             mp.commandv("show-text", text, "5000");
                             return;
@@ -137,7 +179,7 @@ namespace mpvnet
                 string videoFormat = mp.get_property_string("video-format").ToUpper();
                 string audioCodec = mp.get_property_string("audio-codec-name").ToUpper();
 
-                text = Path.GetFileName(path) + "\n" +
+                text = path.FileName() + "\n" +
                     FormatTime(position.TotalMinutes) + ":" +
                     FormatTime(position.Seconds) + " / " +
                     FormatTime(duration2.TotalMinutes) + ":" +
@@ -145,7 +187,7 @@ namespace mpvnet
                     $"{width} x {height}\n";
 
                 if (fileSize > 0)
-                    text += Convert.ToInt32(fileSize / 1024.0 / 1024.0).ToString() + " MB\n";
+                    text += Convert.ToInt32(fileSize / 1024.0 / 1024.0) + " MB\n";
 
                 text += $"{videoFormat}\n{audioCodec}";
 
@@ -158,12 +200,12 @@ namespace mpvnet
             }
         }
 
-        public static void ExecuteMpvCommand()
+        public static void ExecuteMpvCommand() // deprecated 2019
         {
             InvokeOnMainThread(new Action(() => {
-                string command = VB.Interaction.InputBox("Enter a mpv command to be executed.", "Execute Command", RegHelp.GetString(App.RegPath, "RecentExecutedCommand"));
+                string command = VB.Interaction.InputBox("Enter a mpv command to be executed.", "Execute Command", RegistryHelp.GetString(App.RegPath, "RecentExecutedCommand"));
                 if (string.IsNullOrEmpty(command)) return;
-                RegHelp.SetObject(App.RegPath, "RecentExecutedCommand", command);
+                RegistryHelp.SetValue(App.RegPath, "RecentExecutedCommand", command);
                 mp.command(command, false);
             }));
         }
@@ -227,33 +269,6 @@ namespace mpvnet
                 if (aid > audTracks.Length) aid = 1;
                 mp.commandv("set", "aid", aid.ToString());
                 mp.commandv("show-text", audTracks[aid - 1].Text.Substring(3), "5000");
-            }
-        }
-
-        public static void ManageFileAssociations()
-        {
-            using (var td = new TaskDialog<string>())
-            {
-                td.MainInstruction = "Choose an option.";
-                td.MainIcon = MsgIcon.Shield;
-
-                td.AddCommandLink("Register video file extensions", "video");
-                td.AddCommandLink("Register audio file extensions", "audio");
-                td.AddCommandLink("Register audio file extensions", "image");
-                td.AddCommandLink("Unregister file extensions", "unreg");
-
-                string result = td.Show();
-
-                if (!string.IsNullOrEmpty(result))
-                {
-                    using (var proc = new Process())
-                    {
-                        proc.StartInfo.FileName = System.Windows.Forms.Application.ExecutablePath;
-                        proc.StartInfo.Arguments = "--reg-file-assoc " + result;
-                        proc.StartInfo.Verb = "runas";
-                        try { proc.Start(); } catch { }
-                    }
-                }
             }
         }
     }

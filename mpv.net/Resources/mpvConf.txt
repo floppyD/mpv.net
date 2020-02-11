@@ -1,15 +1,15 @@
-﻿
-# manual: https://mpv.io/manual/master/
-
-# defaults: https://github.com/stax76/mpv.net/blob/master/mpv.net/Resources/mpvConf.txt
-
+﻿input-default-bindings = no
 input-ar-delay = 500
 input-ar-rate = 20
-volume = 50
-hwdec = yes
 keep-open = yes
 keep-open-pause = no
 osd-playing-msg = '${filename}'
+script-opts = osc-scalewindowed=1.5
 screenshot-directory = '~~desktop/'
-input-default-bindings = no
-script-opts=osc-scalewindowed=1.5
+cscale = spline36
+dscale = spline36
+scale = spline36
+hwdec = yes
+
+[protocol.https]
+osd-playing-msg = '${media-title}'

@@ -1,13 +1,14 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Linq;
 
 using DynamicGUI;
 
@@ -15,51 +16,37 @@ namespace mpvnet
 {
     public partial class ConfWindow : Window
     {
-        private List<SettingBase> SettingsDefinitions = Settings.LoadSettings(Properties.Resources.mpvConfToml);
-        private List<SettingBase> NetSettingsDefinitions = Settings.LoadSettings(Properties.Resources.mpvNetConfToml);
+        List<SettingBase> SettingsDefinitions = Settings.LoadSettings(Properties.Resources.confToml);
+        List<ConfItem> ConfItems = new List<ConfItem>();
         public ObservableCollection<string> FilterStrings { get; } = new ObservableCollection<string>();
         string InitialContent;
-        
+
         public ConfWindow()
         {
             InitializeComponent();
             DataContext = this;
             SearchControl.SearchTextBox.TextChanged += SearchTextBox_TextChanged;
-            LoadSettings(SettingsDefinitions, Conf);
-            LoadSettings(NetSettingsDefinitions, NetConf);
-            InitialContent = GetContent(mp.ConfPath, Conf, SettingsDefinitions) +
-                             GetContent(App.ConfPath, NetConf, NetSettingsDefinitions);
-            SearchControl.Text = RegHelp.GetString(App.RegPath, "config editor search");
-
-            if (App.IsDarkMode)
-            {
-                Foreground = Brushes.White;
-                Foreground2 = Brushes.Silver;
-                Background = Brushes.Black;
-            }
+            LoadConf(mp.ConfPath);
+            LoadConf(App.ConfPath);
+            LoadSettings();
+            InitialContent = GetCompareString();
+            SearchControl.Text = RegistryHelp.GetString(App.RegPath, "ConfigEditorSearch");
         }
 
-        public Brush Foreground2 {
-            get { return (Brush)GetValue(Foreground2Property); }
-            set { SetValue(Foreground2Property, value); }
-        }
-
-        public static readonly DependencyProperty Foreground2Property =
-            DependencyProperty.Register("Foreground2", typeof(Brush), typeof(ConfWindow), new PropertyMetadata(Brushes.DarkSlateGray));
-
-        private void LoadSettings(List<SettingBase> settingsDefinitions,
-                                  Dictionary<string, string> confSettings)
+        private void LoadSettings()
         {
-            foreach (SettingBase setting in settingsDefinitions)
+            foreach (SettingBase setting in SettingsDefinitions)
             {
                 if (!FilterStrings.Contains(setting.Filter))
                     FilterStrings.Add(setting.Filter);
 
-                foreach (var pair in confSettings)
+                foreach (ConfItem confItem in ConfItems)
                 {
-                    if (setting.Name == pair.Key)
+                    if (setting.Name == confItem.Name && confItem.Section == "" && !confItem.IsSectionItem)
                     {
-                        setting.Value = pair.Value.Trim('\'', '"');
+                        setting.Value = confItem.Value.Trim('\'', '"');
+                        setting.ConfItem = confItem;
+                        confItem.SettingBase = setting;
                         continue;
                     }
                 }
@@ -68,98 +55,196 @@ namespace mpvnet
                 {
                     case StringSetting s:
                         var sc = new StringSettingControl(s);
-                        sc.TitleTextBox.Foreground = WPF.WPF.ThemeBrush;
                         MainStackPanel.Children.Add(sc);
                         break;
                     case OptionSetting s:
                         var oc = new OptionSettingControl(s);
-                        oc.TitleTextBox.Foreground = WPF.WPF.ThemeBrush;
                         MainStackPanel.Children.Add(oc);
                         break;
                 }
             }
         }
 
-        private Dictionary<string, string> _Conf;
-
-        public Dictionary<string, string> Conf {
-            get {
-                if (_Conf == null) _Conf = LoadConf(mp.ConfPath);
-                return _Conf;
-            }
-        }
-
-        private Dictionary<string, string> _NetConf;
-
-        public Dictionary<string, string> NetConf {
-            get {
-                if (_NetConf == null) _NetConf = LoadConf(App.ConfPath);
-                return _NetConf;
-            }
-        }
-
-        private Dictionary<string, string> LoadConf(string filePath)
-        {
-            Dictionary<string, string> conf = new Dictionary<string, string>();
-
-            if (File.Exists(filePath))
-            {
-                foreach (string i in File.ReadAllLines(filePath))
-                {
-                    if (i.Contains("="))
-                    {
-                        int pos = i.IndexOf("=");
-                        string left = i.Substring(0, pos).Trim().ToLower();
-                        string right = i.Substring(pos + 1).Trim();
-                        if (left.StartsWith("#")) continue;
-                        if (left == "fs") left = "fullscreen";
-                        if (left == "loop") left = "loop-file";
-                        conf[left] = right;
-                    }
-                }
-            }
-            return conf;
-        }
-
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
-            string content = GetContent(mp.ConfPath, Conf, SettingsDefinitions);
-            string netContent = GetContent(App.ConfPath, NetConf, NetSettingsDefinitions);
-            if (InitialContent == content + netContent) return;
-            string header = "\r\n# manual: https://mpv.io/manual/master/\r\n\r\n# defaults: https://github.com/stax76/mpv.net/blob/master/mpv.net/Resources/mpvConf.txt\r\n\r\n";
-            File.WriteAllText(mp.ConfPath, header + content);
-            File.WriteAllText(App.ConfPath, netContent);
+            RegistryHelp.SetValue(App.RegPath, "ConfigEditorSearch", SearchControl.Text);
+            
+            if (InitialContent == GetCompareString())
+                return;
+            
+            File.WriteAllText(mp.ConfPath, GetContent("mpv"));
+            File.WriteAllText(App.ConfPath, GetContent("mpvnet"));
             Msg.Show("Changes will be available on next mpv.net startup.");            
-            RegHelp.SetObject(App.RegPath, "config editor search", SearchControl.Text);
         }
 
-        string GetContent(string filePath, Dictionary<string, string> confSettings, List<SettingBase> settings)
+        string GetCompareString()
         {
-            string content = "";
+            return string.Join("", SettingsDefinitions.Select(item => item.Name + item.Value).ToArray());
+        }
 
-            foreach (SettingBase setting in settings)
+        void LoadConf(string file)
+        {
+            if (!File.Exists(file))
+                return;
+
+            string comment = "";
+            string section = "";
+            bool isSectionItem = false;
+
+            foreach (string currentLine in File.ReadAllLines(file))
             {
+                string line = currentLine.Trim();
+
+                if (line == "")
+                {
+                    comment += "\r\n";
+                }
+                else if (line.StartsWith("#"))
+                {
+                    comment += line.Trim() + "\r\n";
+                }
+                else if (line.StartsWith("[") && line.Contains("]"))
+                {
+                    if (!isSectionItem && comment != "" && comment != "\r\n")
+                        ConfItems.Add(new ConfItem() {
+                            Comment = comment, File = Path.GetFileNameWithoutExtension(file)});
+
+                    section = line.Substring(0, line.IndexOf("]") + 1);
+                    comment = "";
+                    isSectionItem = true;
+                }
+                else if (line.Contains("="))
+                {
+                    ConfItem item = new ConfItem();
+                    item.File = Path.GetFileNameWithoutExtension(file);
+                    item.IsSectionItem = isSectionItem;
+                    item.Comment = comment;
+                    comment = "";
+                    item.Section = section;
+                    section = "";
+
+                    if (line.Contains("#") && !line.Contains("'") && !line.Contains("\""))
+                    {
+                        item.LineComment = line.Substring(line.IndexOf("#")).Trim();
+                        line = line.Substring(0, line.IndexOf("#")).Trim();
+                    }
+
+                    int pos = line.IndexOf("=");
+                    string left = line.Substring(0, pos).Trim().ToLower();
+                    string right = line.Substring(pos + 1).Trim();
+
+                    if (left == "fs")
+                        left = "fullscreen";
+
+                    if (left == "loop")
+                        left = "loop-file";
+
+                    item.Name = left;
+                    item.Value = right;
+                    ConfItems.Add(item);
+                }
+            }
+        }
+
+        string GetContent(string filename)
+        {
+            StringBuilder sb = new StringBuilder();
+            List<string> namesWritten = new List<string>();
+
+            foreach (ConfItem item in ConfItems)
+            {
+                if (filename != item.File || item.Section != "" || item.IsSectionItem)
+                    continue;
+
+                if (item.Comment != "")
+                    sb.Append(item.Comment);
+
+                if (item.SettingBase == null)
+                {
+                    if (item.Name != "")
+                    {
+                        sb.Append(item.Name + " = " + item.Value);
+
+                        if (item.LineComment != "")
+                            sb.Append(" " + item.LineComment);
+
+                        sb.AppendLine();
+                        namesWritten.Add(item.Name);
+                    }
+                }
+                else if ((item.SettingBase.Value ?? "") != item.SettingBase.Default)
+                {
+                    string value = "";
+
+                    if (item.SettingBase.Type == "string" ||
+                        item.SettingBase.Type == "folder" ||
+                        item.SettingBase.Type == "color")
+
+                        value = "'" + item.SettingBase.Value + "'";
+                    else
+                        value = item.SettingBase.Value;
+
+                    sb.Append(item.Name + " = " + value);
+
+                    if (item.LineComment != "")
+                        sb.Append(" " + item.LineComment);
+
+                    sb.AppendLine();
+                    namesWritten.Add(item.Name);
+                }
+            }
+
+            if (!sb.ToString().Contains("# Editor"))
+                sb.AppendLine("# Editor");
+
+            foreach (SettingBase setting in SettingsDefinitions)
+            {
+                if (filename != setting.File || namesWritten.Contains(setting.Name))
+                    continue;
+
                 if ((setting.Value ?? "") != setting.Default)
+                {
+                    string value = "";
+
                     if (setting.Type == "string" ||
                         setting.Type == "folder" ||
                         setting.Type == "color")
 
-                        confSettings[setting.Name] = "'" + setting.Value + "'";
+                        value = "'" + setting.Value + "'";
                     else
-                        confSettings[setting.Name] = setting.Value;
+                        value = setting.Value;
 
-                if (confSettings.ContainsKey(setting.Name) &&
-                    (setting.Value ?? "") == setting.Default ||
-                    (setting.Value ?? "") == "")
-
-                    confSettings.Remove(setting.Name);
+                    sb.AppendLine(setting.Name + " = " + value);
+                }
             }
 
-            foreach (var i in confSettings)
-                content = content + $"{i.Key} = {i.Value}\r\n";
+            foreach (ConfItem item in ConfItems)
+            {
+                if (filename != item.File || (item.Section == "" && !item.IsSectionItem))
+                    continue;
 
-            return content;
+                if (item.Section != "")
+                {
+                    if (!sb.ToString().EndsWith("\r\n\r\n"))
+                        sb.AppendLine();
+
+                    sb.AppendLine(item.Section);
+                }
+
+                if (item.Comment != "")
+                    sb.Append(item.Comment);
+
+                sb.Append(item.Name + " = " + item.Value);
+
+                if (item.LineComment != "")
+                    sb.Append(" " + item.LineComment);
+
+                sb.AppendLine();
+                namesWritten.Add(item.Name);
+            }
+
+            return "\r\n" + sb.ToString().Trim() + "\r\n";
         }
 
         private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -194,14 +279,14 @@ namespace mpvnet
         {
             SearchControl.SearchTextBox.SelectAll();
             Keyboard.Focus(SearchControl.SearchTextBox);
+
             foreach (var i in MainStackPanel.Children.OfType<StringSettingControl>())
                 i.Update();
         }
 
-        private void ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void FilterListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (e.AddedItems.Count > 0)
-                SearchControl.Text = e.AddedItems[0].ToString() + ":";
+            if (e.AddedItems.Count > 0) SearchControl.Text = e.AddedItems[0] + ":";
         }
 
         private void OpenSettingsTextBlock_MouseUp(object sender, MouseButtonEventArgs e)
@@ -211,7 +296,7 @@ namespace mpvnet
 
         private void PreviewTextBlock_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            Msg.Show("mpv.conf Preview", GetContent(mp.ConfPath, Conf, SettingsDefinitions));
+            Msg.Show("mpv.conf Preview", GetContent("mpv"));
         }
 
         private void ShowManualTextBlock_MouseUp(object sender, MouseButtonEventArgs e)
@@ -227,6 +312,7 @@ namespace mpvnet
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
+
             if (e.Key == Key.Escape)
                 Close();
         }

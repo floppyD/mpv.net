@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -6,7 +7,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Media;
 
 namespace mpvnet
 {
@@ -26,38 +26,28 @@ namespace mpvnet
             var yourCostumFilter = new Predicate<object>(item => Filter((CommandItem)item));
             CollectionView.Filter = yourCostumFilter;
             DataGrid.ItemsSource = CollectionView;
-
-            if (App.IsDarkMode)
-            {
-                Foreground = Brushes.White;
-                Foreground2 = Brushes.Silver;
-                Background = Brushes.Black;
-            }
         }
-
-        public Brush Foreground2 {
-            get { return (Brush)GetValue(Foreground2Property); }
-            set { SetValue(Foreground2Property, value); }
-        }
-
-        public static readonly DependencyProperty Foreground2Property =
-            DependencyProperty.Register("Foreground2", typeof(Brush), typeof(InputWindow), new PropertyMetadata(Brushes.DarkSlateGray));
 
         private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             CollectionView.Refresh();
 
             if (SearchControl.SearchTextBox.Text == "?")
-                Msg.Show("Filtering works by searching in the Input, Menu and Command but it's possible to reduce the filter scope to either of Input, Menu or Command by prefixing as follows:\n\ni <input search>\ni: <input search>\n\nm <menu search>\nm: <menu search>\n\nc <command search>\nc: <command search>\n\nIf only one character is entered the search will be performed only in the input.", "Filtering");
+            {
+                SearchControl.SearchTextBox.Text = "";
+                Msg.Show("Filtering", "Reduce the filter scope with:\n\ni input\n\nm menu\n\nc command\n\nIf only one character is entered input search is performed.");
+            }
         }
 
         bool Filter(CommandItem item)
         {
             if (item.Command == "") return false;
             string searchText = SearchControl.SearchTextBox.Text.ToLower();
-            if (searchText == "") return true;
+            if (searchText == "" || searchText == "?") return true;
 
-            if (searchText.StartsWith("i ") || searchText.StartsWith("i:") || searchText.Length == 1)
+            if (searchText.Length == 1)
+                return item.Input.ToLower().Replace("ctrl+", "").Replace("shift+", "").Replace("alt+", "") == searchText.ToLower();
+            else if (searchText.StartsWith("i ") || searchText.StartsWith("i:") || searchText.Length == 1)
             {
                 if (searchText.Length > 1)
                     searchText = searchText.Substring(2).Trim();

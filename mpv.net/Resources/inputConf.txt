@@ -1,17 +1,11 @@
 
- # This file defines the input (keys and mouse) bindings of mpv and mpv.net
- # and it also defines the context menu of mpv.net. mpv.net has an input
- # editor and an config editor as alternative to editing conf text files.
- # The input and config editor can be found in mpv.net's context menu at:
-
- # Settings > Show Config Editor
- # Settings > Show Input Editor
-
- # The defaults of this file can be found at:
+ # This file defines the key and mouse bindings and the context menu
+ # of mpv.net. A input and config editor can be found in mpv.net's
+ # context menu under 'Settings'. The defaults of this file can be found at:
 
  # https://github.com/stax76/mpv.net/blob/master/mpv.net/Resources/inputConf.txt
 
- # the defaults of mpv can be found at:
+ # The defaults of mpv can be found at:
 
  # https://github.com/mpv-player/mpv/blob/master/etc/input.conf
 
@@ -20,22 +14,23 @@
  # space character to make it easier to do a text search, so if you want to know
  # if 'o' has already a binding you can make a text search on ' o '.
 
- # mpv input commands: https://github.com/stax76/mpv.net/wiki/mpv-input-commands
+ # mpv input commands: https://mpv.io/manual/master/#list-of-input-commands
 
  # mpv input keys:     https://github.com/stax76/mpv.net/wiki/mpv-input-keys
 
  # run mpv.net in input test mode with: mpvnet --input-test
 
- o           script-message mpv.net open-files #menu: Open > Open Files...
- u           script-message mpv.net open-url   #menu: Open > Open URL or file path from clipboard
- _           ignore                            #menu: Open > -
- Alt+a       script-message mpv.net load-audio #menu: Open > Load external audio files...
- Alt+s       script-message mpv.net load-sub   #menu: Open > Load external subtitle files...
- _           ignore                            #menu: Open > -
- _           script-message mpv.net open-files append #menu: Open > Add files to playlist...
- F3          script-message mpv.net show-media-search #menu: Open > Show media search...
- _           ignore                            #menu: Open > -
- _           ignore                            #menu: Open > Recent
+ o           script-message mpv.net open-files         #menu: Open > Open Files...
+ u           script-message mpv.net open-url           #menu: Open > Open URL or file path from clipboard
+ _           script-message mpv.net open-optical-media #menu: Open > Open DVD/Blu-ray Drive/Folder...
+ _           ignore                                    #menu: Open > -
+ Alt+a       script-message mpv.net load-audio         #menu: Open > Load external audio files...
+ Alt+s       script-message mpv.net load-sub           #menu: Open > Load external subtitle files...
+ _           ignore                                    #menu: Open > -
+ _           script-message mpv.net open-files append  #menu: Open > Add files to playlist...
+ F3          script-message mpv.net show-media-search  #menu: Open > Show media search...
+ _           ignore                                    #menu: Open > -
+ _           ignore                                    #menu: Open > Recent
 
  _           ignore                 #menu: -
  Space       cycle pause            #menu: Play/Pause
@@ -45,6 +40,9 @@
  
  F11         playlist-prev          #menu: Navigate > Previous File
  F12         playlist-next          #menu: Navigate > Next File
+ _           ignore                 #menu: Navigate > -
+ Home        set playlist-pos 0     #menu: Navigate > First File
+ End         script-message mpv.net playlist-last #menu: Navigate > Last File
  _           ignore                 #menu: Navigate > -
  PGUP        add chapter  1         #menu: Navigate > Next Chapter
  PGDWN       add chapter -1         #menu: Navigate > Previous Chapter
@@ -136,8 +134,10 @@
 
  Ctrl+t set ontop yes                             #menu: View > On Top > Enable
  Ctrl+T set ontop no                              #menu: View > On Top > Disable
+ Alt++  no-osd set window-scale 1.2               #menu: View > Window Size > Enlarge
+ Alt+-  no-osd set window-scale 0.8               #menu: View > Window Size > Shrink
  b      cycle border                              #menu: View > Toggle Border
- i      script-message mpv.net show-info          #menu: View > File Info
+ i      script-message mpv.net show-info          #menu: View > File/Stream Info
  t      script-binding stats/display-stats        #menu: View > Show Statistics
  T      script-binding stats/display-stats-toggle #menu: View > Toggle Statistics
  Del    script-binding osc/visibility             #menu: View > Toggle OSC Visibility
@@ -150,19 +150,21 @@
 
  F1     script-message mpv.net show-command-palette #menu: Tools > Show All Commands
  h      script-message mpv.net show-history         #menu: Tools > Show History
+ Ctrl+r script-message-to repl type ""              #menu: Tools > Show REPL
  l      ab-loop                                     #menu: Tools > Set/clear A-B loop points
  L      cycle-values loop-file "inf" "no"           #menu: Tools > Toggle infinite file looping
+ _      cycle shuffle                               #menu: Tools > Toggle Shuffle
  Ctrl+h cycle-values hwdec "auto" "no"              #menu: Tools > Toggle Hardware Decoding
- _ script-message mpv.net execute-mpv-command       #menu: Tools > Execute mpv command...
- _ script-message mpv.net manage-file-associations  #menu: Tools > Manage File Associations...
+ _ script-message mpv.net show-setup-dialog         #menu: Tools > OS Setup...
 
- _ script-message mpv.net shell-execute https://mpv.io/manual/stable/ #menu: Help > Show mpv manual
- _ script-message mpv.net shell-execute https://github.com/mpv-player/mpv/blob/master/etc/input.conf #menu: Help > Show mpv default keys
- _ script-message mpv.net shell-execute https://github.com/stax76/mpv.net/blob/master/mpv.net/Resources/inputConf.txt #menu: Help > Show mpv.net default keys
- _ script-message mpv.net shell-execute https://mpv-net.github.io/mpv.net-web-site/ #menu: Help > Show mpv.net web site
- _ script-message mpv.net shell-execute https://github.com/stax76/mpv.net/blob/master/Manual.md #menu: Help > Show mpv.net manual
- _ ignore                                         #menu: Help > -
- _ script-message mpv.net show-about              #menu: Help > About mpv.net
+ _ script-message mpv.net shell-execute https://mpv.io                    #menu: Help > Website mpv
+ _ script-message mpv.net shell-execute https://github.com/stax76/mpv.net #menu: Help > Website mpv.net
+ _ ignore                                                                 #menu: Help > -
+ _ script-message mpv.net shell-execute https://mpv.io/manual/stable/     #menu: Help > Manual mpv
+ _ script-message mpv.net shell-execute https://github.com/stax76/mpv.net/blob/master/Manual.md #menu: Help > Manual mpv.net
+ _ ignore                                                                 #menu: Help > -
+ _ script-message mpv.net update-check                                    #menu: Help > Check for Updates
+ _ script-message mpv.net show-about                                      #menu: Help > About mpv.net
 
  _ ignore           #menu: -
  Esc quit           #menu: Exit

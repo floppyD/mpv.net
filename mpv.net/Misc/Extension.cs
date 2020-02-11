@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
 using System.IO;
-using System.Windows.Forms;
+using System.Linq;
 
 namespace mpvnet
 {
@@ -19,14 +19,22 @@ namespace mpvnet
             try
             {
                 AggregateCatalog catalog = new AggregateCatalog();
-
-                string dir = Application.StartupPath + "\\Extensions";
+                string dir = Folder.Startup + "Extensions";
 
                 if (Directory.Exists(dir))
-                    foreach (string i in Directory.GetDirectories(dir))
-                        catalog.Catalogs.Add(new DirectoryCatalog(i, "*Extension.dll"));
+                {
+                    string[] knownExtensions = { "RatingExtension", "ScriptingExtension" };
 
-                dir = mp.ConfigFolder + "\\Extensions";
+                    foreach (string path in Directory.GetDirectories(dir))
+                    {
+                        if (knownExtensions.Contains(Path.GetFileName(path)))
+                            catalog.Catalogs.Add(new DirectoryCatalog(path, "*Extension.dll"));
+                        else
+                            Msg.ShowError("Failed to load extension", path + "\n\nOnly extensions that ship with mpv.net are allowed in <startup>\\extensions\n\nUser extensions have to use <config folder>\\extensions\n\nNever copy or install a new mpv.net version over a old mpv.net version.");
+                    }
+                }
+
+                dir = mp.ConfigFolder + "extensions";
 
                 if (Directory.Exists(dir))
                     foreach (string i in Directory.GetDirectories(dir))
